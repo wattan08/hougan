@@ -6,7 +6,7 @@ public class InputManager : MonoBehaviour
     public static InputManager Instance;
 
     private InputActions inputActions;
-    private ThrowController throwController;
+
     private ChargeSystem chargeSystem;
     private DirectionSystem directionSystem;
     private TimingSystem timingSystem;
@@ -33,8 +33,6 @@ public class InputManager : MonoBehaviour
 
         timingSystem =
             FindObjectOfType<TimingSystem>();
-
-        throwController = FindObjectOfType<ThrowController>();
     }
 
     private void OnEnable()
@@ -42,30 +40,63 @@ public class InputManager : MonoBehaviour
         inputActions.Enable();
 
         inputActions.Player.ChargeButton.performed += OnCharge;
-        inputActions.Player.Timing_Circle.performed += OnTimingCross;
+
+        inputActions.Player.Timing_Cross.performed += OnCross;
     }
 
     private void OnDisable()
     {
         inputActions.Player.ChargeButton.performed -= OnCharge;
-        inputActions.Player.Timing_Circle.performed -= OnTimingCross;
+
+        inputActions.Player.Timing_Cross.performed -= OnCross;
 
         inputActions.Disable();
     }
 
+    //==================================================
+    // Charge
+    //==================================================
+
     private void OnCharge(InputAction.CallbackContext ctx)
     {
-            // Chargeフェーズ以外無効
-            if (GameManager.Instance.currentPhase
-                != GamePhase.Charge)
-                return;
+        if (GameManager.Instance.currentPhase
+            != GamePhase.Charge)
+            return;
 
-            // 連打加算
-            chargeSystem.AddCharge();
+        chargeSystem.AddCharge();
     }
 
-    private void OnTimingCross(InputAction.CallbackContext ctx)
+    //==================================================
+    // Cross
+    //==================================================
+
+    private void OnCross(InputAction.CallbackContext ctx)
     {
-        Debug.Log("投擲！");
+        Debug.Log(
+            $"現在フェーズ : "
+            + $"{GameManager.Instance.currentPhase}");
+
+        //==============================
+        // Direction
+        //==============================
+
+        if (GameManager.Instance.currentPhase
+            == GamePhase.Direction)
+        {
+            directionSystem.ConfirmDirection();
+
+            return;
+        }
+
+        //==============================
+        // Timing
+        //==============================
+
+        if (GameManager.Instance.currentPhase
+            == GamePhase.Timing)
+        {
+            timingSystem.PressButton(
+                TimingButtonType.Cross);
+        }
     }
 }

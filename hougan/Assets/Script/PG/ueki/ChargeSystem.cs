@@ -6,7 +6,7 @@ public class ChargeSystem : MonoBehaviour
     public float chargeTime = 3f;
 
     [Header("最大連打数")]
-    public int maxPressCount = 30;
+    public int maxPressCount = 100;
 
     [Header("現在時間")]
     public float currentTime;
@@ -80,11 +80,10 @@ public class ChargeSystem : MonoBehaviour
         Debug.Log(
             $"最終チャージ : {chargePower}");
 
-        // 保存
         GameManager.Instance.chargePower =
             chargePower;
 
-        // 次フェーズ
+        // 修正
         GameManager.Instance.StartDirectionPhase();
     }
 }

@@ -1,4 +1,6 @@
+using JetBrains.Annotations;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class GameManager : MonoBehaviour
 {
@@ -24,6 +26,7 @@ public class GameManager : MonoBehaviour
     public DirectionSystem directionSystem;
     public TimingSystem timingSystem;
     public ThrowController throwController;
+    public WeatherSystem weatherSystem;
 
     // ===== 各フェーズ結果 =====
 
@@ -60,17 +63,30 @@ public class GameManager : MonoBehaviour
 
     public void StartChargePhase()
     {
-        currentPhase = GamePhase.Charge;
+      
+            //==============================
+            // 天候決定
+            //==============================
 
-        Debug.Log("チャージ開始");
+            weatherSystem.DecideWeather();
 
-        chargeSystem.StartCharge();
+            //==============================
+            // Charge開始
+            //==============================
+
+            currentPhase = GamePhase.Charge;
+
+            Debug.Log(
+                $"----- {currentThrow}投目 -----");
+
+            Debug.Log("チャージ開始");
+
+            chargeSystem.StartCharge();
+      
     }
-
     //==================================================
-    // Direction Phase
+    //Direction Phase
     //==================================================
-
     public void StartDirectionPhase()
     {
         currentPhase = GamePhase.Direction;
@@ -79,7 +95,6 @@ public class GameManager : MonoBehaviour
 
         directionSystem.StartDirection();
     }
-
     //==================================================
     // Timing Phase
     //==================================================
@@ -104,15 +119,16 @@ public class GameManager : MonoBehaviour
 
         // 最終パワー計算
         float finalPower =
-            throwController.basePower *
-            chargePower*
-            directionAccuracy*
-            timingAccuracy;
+      throwController.basePower
+      * chargePower
+      * directionAccuracy
+      + (timingAccuracy * 2f);
 
         Debug.Log($"最終パワー : {finalPower}");
 
         // 投擲
         throwController.ThrowBall(finalPower);
+        Debug.Log("投擲");
 
         // 着地待機
         currentPhase = GamePhase.WaitingLanding;
@@ -142,7 +158,11 @@ public class GameManager : MonoBehaviour
             Vector3.Distance(start, end);
 
         // スコア加算
-        totalScore += distance;
+        float finalScore =
+    weatherSystem.ApplyScore(
+        distance);
+
+        totalScore += finalScore;
 
         //==============================
         // Debug表示
