@@ -6,7 +6,16 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/wattan Scene.unity
+    path: Assets/Scenes/Main Scene.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Scenes/title Scene.unity
+    guid: e004b8ec89244864186ad277fbdb33d8
+  - enabled: 1
+    path: Assets/Scenes/SettingScene.unity
+    guid: 91ba6723eab21344e9bc4bce7f26a018
+  - enabled: 1
+    path: Assets/Scenes/result Scene.unity
+    guid: 7d922ecb51f1ec34eab6ad16bc3c2b02
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}

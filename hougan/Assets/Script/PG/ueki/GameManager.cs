@@ -1,10 +1,11 @@
-using JetBrains.Annotations;
 using UnityEngine;
-using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using TMPro;
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
+    public static float FinalScore;
 
     [Header("現在フェーズ")]
     public GamePhase currentPhase;
@@ -21,6 +22,9 @@ public class GameManager : MonoBehaviour
     [Header("投擲開始位置")]
     public Transform throwStartPoint;
 
+    [Header("右上スコアUI")]
+    public TMP_Text scoreUI;
+
     [Header("システム")]
     public ChargeSystem chargeSystem;
     public DirectionSystem directionSystem;
@@ -28,171 +32,162 @@ public class GameManager : MonoBehaviour
     public ThrowController throwController;
     public WeatherSystem weatherSystem;
 
-    // ===== 各フェーズ結果 =====
+    [HideInInspector] public float chargePower;
+    [HideInInspector] public float directionAccuracy;
+    [HideInInspector] public float timingAccuracy;
 
-    [HideInInspector]
-    public float chargePower;
-
-    [HideInInspector]
-    public float directionAccuracy;
-
-    [HideInInspector]
-    public float timingAccuracy;
+    // ★投ごとのスコア保存
+    private float[] throwScores;
 
     private void Awake()
     {
-        // Singleton
         if (Instance == null)
-        {
             Instance = this;
-        }
         else
-        {
             Destroy(gameObject);
-        }
+
+        // 配列初期化
+        throwScores = new float[maxThrow];
     }
 
     private void Start()
     {
+        UpdateScoreUI();
         StartChargePhase();
     }
 
     //==================================================
-    // Charge Phase
+    // Charge
     //==================================================
-
     public void StartChargePhase()
     {
-      
-            //==============================
-            // 天候決定
-            //==============================
+        weatherSystem.DecideWeather();
 
-            weatherSystem.DecideWeather();
+        currentPhase = GamePhase.Charge;
 
-            //==============================
-            // Charge開始
-            //==============================
+        Debug.Log($"----- {currentThrow}投目 -----");
 
-            currentPhase = GamePhase.Charge;
-
-            Debug.Log(
-                $"----- {currentThrow}投目 -----");
-
-            Debug.Log("チャージ開始");
-
-            chargeSystem.StartCharge();
-      
+        chargeSystem.StartCharge();
     }
+
     //==================================================
-    //Direction Phase
+    // Direction
     //==================================================
     public void StartDirectionPhase()
     {
         currentPhase = GamePhase.Direction;
-
-        Debug.Log("方向決定開始");
-
         directionSystem.StartDirection();
     }
-    //==================================================
-    // Timing Phase
-    //==================================================
 
+    //==================================================
+    // Timing
+    //==================================================
     public void StartTimingPhase()
     {
         currentPhase = GamePhase.Timing;
-
-        Debug.Log("タイミング開始");
-
         timingSystem.StartTiming();
     }
-    //==================================================
-    // Throw Phase
-    //==================================================
 
+    //==================================================
+    // Throw
+    //==================================================
     public void StartThrowPhase()
     {
         currentPhase = GamePhase.Throw;
 
-        Debug.Log("投擲開始");
-
-        // 最終パワー計算
         float finalPower =
-      throwController.basePower
-      * chargePower
-      * directionAccuracy
-      + (timingAccuracy * 2f);
+            throwController.basePower *
+            chargePower *
+            directionAccuracy +
+            (timingAccuracy * 2f);
 
-        Debug.Log($"最終パワー : {finalPower}");
-
-        // 投擲
         throwController.ThrowBall(finalPower);
-        Debug.Log("投擲");
 
-        // 着地待機
         currentPhase = GamePhase.WaitingLanding;
     }
 
     //==================================================
     // Landing
     //==================================================
-
     public void OnBallLanded(Vector3 landingPoint)
     {
-        // XZ平面距離
-        Vector3 start =
-            new Vector3(
-                throwStartPoint.position.x,
-                0f,
-                throwStartPoint.position.z);
+        Vector3 start = new Vector3(
+            throwStartPoint.position.x, 0f, throwStartPoint.position.z);
 
-        Vector3 end =
-            new Vector3(
-                landingPoint.x,
-                0f,
-                landingPoint.z);
+        Vector3 end = new Vector3(
+            landingPoint.x, 0f, landingPoint.z);
 
-        // 飛距離計測
-        float distance =
-            Vector3.Distance(start, end);
+        float distance = Vector3.Distance(start, end);
 
-        // スコア加算
-        float finalScore =
-    weatherSystem.ApplyScore(
-        distance);
+        float finalScore = weatherSystem.ApplyScore(distance);
 
         totalScore += finalScore;
 
-        //==============================
-        // Debug表示
-        //==============================
+        //==================================================
+        // ★安全にスコア保存（ここが修正ポイント）
+        //==================================================
+        int index = currentThrow - 1;
 
-        Debug.Log(
-            $"今回の飛距離 : {distance:F2}m");
+        if (index >= 0 && index < throwScores.Length)
+        {
+            throwScores[index] = finalScore;
+        }
+        else
+        {
+            Debug.LogError("throwScores 範囲外アクセス");
+        }
 
-        Debug.Log(
-            $"現在合計スコア : {totalScore:F2}m");
+        Debug.Log($"今回の飛距離 : {distance:F2}m");
+        Debug.Log($"今回スコア : {finalScore:F2}m");
 
-        //==============================
-        // 次投擲
-        //==============================
+        UpdateScoreUI();
 
+        // 次投へ
         currentThrow++;
 
-        // 3投未満
+        //==================================================
+        // フェーズ分岐
+        //==================================================
         if (currentThrow <= maxThrow)
         {
             StartChargePhase();
+            UpdateScoreUI();
         }
         else
         {
             currentPhase = GamePhase.Result;
 
-            Debug.Log("ゲーム終了");
+            FinalScore = totalScore; // ★追加
 
-            Debug.Log(
-                $"最終スコア : {totalScore:F2}m");
+            Debug.Log("ゲーム終了");
+            Debug.Log($"最終スコア : {totalScore:F2}m");
+
+            SceneManager.LoadScene("result Scene");
         }
+    }
+
+    //==================================================
+    // 右上UI表示
+    //==================================================
+    void UpdateScoreUI()
+    {
+        if (scoreUI == null) return;
+
+        string text = "";
+
+        // 2投目以降：1投目表示
+        if (currentThrow >= 2)
+        {
+            text += $"1投目: {throwScores[0]:F1}\n";
+        }
+
+        // 3投目以降：2投目＋合計表示
+        if (currentThrow >= 3)
+        {
+            text += $"2投目: {throwScores[1]:F1}\n";
+            text += $"合計: {totalScore:F1}";
+        }
+
+        scoreUI.text = text;
     }
 }
