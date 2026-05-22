@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using TMPro;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -8,369 +9,279 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
-    //==================================================
-    // リザルト用
-    //==================================================
     public static float FinalScore;
-
-    // スコア履歴
     public static List<float> ScoreHistory = new List<float>();
 
-    // PlayerPrefs保存キー
     private const string SCORE_KEY = "ScoreHistory";
 
     [Header("現在フェーズ")]
     public GamePhase currentPhase;
 
-    [Header("現在投数")]
     public int currentThrow = 1;
-
-    [Header("最大投数")]
     public int maxThrow = 3;
 
-    [Header("合計スコア")]
     public float totalScore;
 
-    [Header("投擲開始位置")]
-    public Transform throwStartPoint;
-
-    [Header("右上スコアUI")]
+    [Header("UI")]
     public TMP_Text scoreUI;
-
-    [Header("左上天候UI")]
     public TMP_Text weatherUI;
 
-    [Header("システム")]
+    [Header("Systems")]
     public ChargeSystem chargeSystem;
     public DirectionSystem directionSystem;
     public TimingSystem timingSystem;
     public ThrowController throwController;
     public WeatherSystem weatherSystem;
 
+    [Header("Cameras")]
+    public Camera mainCamera;
+    public Camera gameCamera;
+    public BallFollowCamera ballFollowCamera;
+
+    [Header("Runtime")]
+    public Transform currentBall;
+
     [HideInInspector] public float chargePower;
     [HideInInspector] public float directionAccuracy;
     [HideInInspector] public float timingAccuracy;
 
-    //==================================================
-    // 投ごとのスコア保存
-    //==================================================
     private float[] throwScores;
 
-    //==================================================
-    // Awake
-    //==================================================
     private void Awake()
     {
-        // Singleton
-        if (Instance == null)
-        {
-            Instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-            return;
-        }
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
 
-        // maxThrow最低保証
-        if (maxThrow <= 0)
-        {
-            maxThrow = 3;
-        }
-
-        // 配列初期化
         throwScores = new float[maxThrow];
-
-        // スコア読込
         LoadScores();
     }
 
-    //==================================================
-    // Start
-    //==================================================
     private void Start()
     {
+        SetCamera(CameraMode.Main);
+
         UpdateScoreUI();
         UpdateWeatherUI();
 
         StartChargePhase();
     }
 
-    //==================================================
-    // Charge
-    //==================================================
+    // =========================
+    // Phase
+    // =========================
+
     public void StartChargePhase()
     {
+        SetCamera(CameraMode.Main);
+
         currentPhase = GamePhase.Charge;
 
-        if (weatherSystem != null)
-        {
-            weatherSystem.DecideWeather();
+        weatherSystem?.DecideWeather();
+        UpdateWeatherUI();
 
-            // 天候UI更新
-            UpdateWeatherUI();
-        }
-
-        Debug.Log($"----- {currentThrow}投目 -----");
-
-        if (chargeSystem != null)
-        {
-            chargeSystem.StartCharge();
-        }
-        else
-        {
-            Debug.LogError("ChargeSystem が設定されていません");
-        }
+        chargeSystem?.StartCharge();
     }
 
-    //==================================================
-    // Direction
-    //==================================================
     public void StartDirectionPhase()
     {
         currentPhase = GamePhase.Direction;
-
-        if (directionSystem != null)
-        {
-            directionSystem.StartDirection();
-        }
-        else
-        {
-            Debug.LogError("DirectionSystem が設定されていません");
-        }
+        directionSystem?.StartDirection();
     }
 
-    //==================================================
-    // Timing
-    //==================================================
     public void StartTimingPhase()
     {
         currentPhase = GamePhase.Timing;
-
-        if (timingSystem != null)
-        {
-            timingSystem.StartTiming();
-        }
-        else
-        {
-            Debug.LogError("TimingSystem が設定されていません");
-        }
+        timingSystem?.StartTiming();
     }
 
-    //==================================================
-    // Throw
-    //==================================================
     public void StartThrowPhase()
     {
-        currentPhase = GamePhase.Throw;
-
-        if (throwController == null)
-        {
-            Debug.LogError("ThrowController が設定されていません");
-            return;
-        }
-
-        float finalPower =
-            throwController.basePower *
-            chargePower *
-            directionAccuracy +
-            (timingAccuracy * 2f);
-
-        throwController.ThrowBall(finalPower);
-
-        currentPhase = GamePhase.WaitingLanding;
+        StartCoroutine(ThrowSequence());
     }
 
-    //==================================================
+    IEnumerator ThrowSequence()
+    {
+        SetCamera(CameraMode.Game);
+
+        yield return new WaitForSeconds(0.3f);
+
+        currentPhase = GamePhase.Throw;
+
+        float finalPower =
+            throwController.basePower * 2 *
+            chargePower * 2 *
+            directionAccuracy * 2 +
+            (timingAccuracy * 2f);
+
+        // ボール生成
+        GameObject ball = Instantiate(
+            throwController.shotBallPrefab,
+            throwController.spawnPoint.position,
+            Quaternion.identity);
+
+        currentBall = ball.transform;
+
+        // 投擲
+        ball.AddComponent<SimpleProjectile>()
+            .Init(throwController.spawnPoint.forward, finalPower);
+
+        currentPhase = GamePhase.WaitingLanding;
+
+        yield return new WaitForSeconds(0.1f);
+
+        // ★ここが重要：BallFollowに正しく接続
+        ballFollowCamera.target = currentBall;
+
+        SetCamera(CameraMode.BallFollow);
+    }
+
+    // =========================
     // Landing
-    //==================================================
+    // =========================
+
     public void OnBallLanded(Vector3 landingPoint)
     {
-        if (throwStartPoint == null)
-        {
-            Debug.LogError("throwStartPoint が設定されていません");
-            return;
-        }
+        SetCamera(CameraMode.Main);
+
+        currentBall = null;
+        ballFollowCamera.target = null;
 
         Vector3 start = new Vector3(
-            throwStartPoint.position.x,
-            0f,
-            throwStartPoint.position.z);
+            throwController.spawnPoint.position.x,
+            0,
+            throwController.spawnPoint.position.z);
 
         Vector3 end = new Vector3(
-            landingPoint.x,
-            0f,
+            landingPoint.x, 0,
             landingPoint.z);
 
         float distance = Vector3.Distance(start, end);
 
-        //==================================================
-        // 天候補正
-        //==================================================
-        float finalScore = distance;
-
-        if (weatherSystem != null)
-        {
-            finalScore = weatherSystem.ApplyScore(distance);
-        }
+        float finalScore =
+            weatherSystem != null
+            ? weatherSystem.ApplyScore(distance)
+            : distance;
 
         totalScore += finalScore;
 
-        //==================================================
-        // 投スコア保存
-        //==================================================
         int index = currentThrow - 1;
 
         if (index >= 0 && index < throwScores.Length)
-        {
             throwScores[index] = finalScore;
-        }
-        else
-        {
-            Debug.LogError("throwScores 範囲外アクセス");
-        }
-
-        Debug.Log($"今回の飛距離 : {distance:F2}m");
-        Debug.Log($"今回スコア : {finalScore:F2}m");
 
         UpdateScoreUI();
 
-        // 次投へ
         currentThrow++;
 
-        //==================================================
-        // 次フェーズ
-        //==================================================
         if (currentThrow <= maxThrow)
         {
             StartChargePhase();
         }
         else
         {
-            currentPhase = GamePhase.Result;
-
-            // 最終スコア
             FinalScore = totalScore;
-
-            // 保存
             SaveScore(totalScore);
-
-            Debug.Log("ゲーム終了");
-            Debug.Log($"最終スコア : {totalScore:F2}m");
-
             SceneManager.LoadScene("result Scene");
         }
     }
 
-    //==================================================
-    // スコア保存
-    //==================================================
-    public void SaveScore(float score)
+    // =========================
+    // Camera
+    // =========================
+
+    public enum CameraMode
     {
-        // リスト追加
-        ScoreHistory.Add(score);
-
-        // 大きい順
-        ScoreHistory = ScoreHistory
-            .OrderByDescending(x => x)
-            .ToList();
-
-        // 3件だけ残す
-        if (ScoreHistory.Count > 3)
-        {
-            ScoreHistory.RemoveRange(3, ScoreHistory.Count - 3);
-        }
-
-        // 保存文字列化
-        string saveData = string.Join(",", ScoreHistory);
-
-        PlayerPrefs.SetString(SCORE_KEY, saveData);
-        PlayerPrefs.Save();
+        Main,
+        Game,
+        BallFollow
     }
 
-    //==================================================
-    // スコア読込
-    //==================================================
-    private void LoadScores()
+    public CameraMode currentCameraMode;
+
+    void SetCamera(CameraMode mode)
     {
-        ScoreHistory.Clear();
+        currentCameraMode = mode;
 
-        if (!PlayerPrefs.HasKey(SCORE_KEY))
-            return;
+        if (mainCamera) mainCamera.enabled = false;
+        if (gameCamera) gameCamera.enabled = false;
+        if (ballFollowCamera) ballFollowCamera.enabled = false;
 
-        string saveData = PlayerPrefs.GetString(SCORE_KEY);
-
-        if (string.IsNullOrEmpty(saveData))
-            return;
-
-        string[] scores = saveData.Split(',');
-
-        foreach (string s in scores)
+        switch (mode)
         {
-            if (float.TryParse(s, out float value))
-            {
-                ScoreHistory.Add(value);
-            }
-        }
+            case CameraMode.Main:
+                if (mainCamera) mainCamera.enabled = true;
+                break;
 
-        // 念のため並び替え
-        ScoreHistory = ScoreHistory
-            .OrderByDescending(x => x)
-            .ToList();
+            case CameraMode.Game:
+                if (gameCamera) gameCamera.enabled = true;
+                break;
+
+            case CameraMode.BallFollow:
+                if (ballFollowCamera) ballFollowCamera.enabled = true;
+                break;
+        }
     }
 
-    //==================================================
-    // 右上スコアUI
-    //==================================================
+    // =========================
+    // UI
+    // =========================
+
     void UpdateScoreUI()
     {
-        if (scoreUI == null)
-            return;
+        if (!scoreUI) return;
 
         string text = "";
 
         for (int i = 0; i < maxThrow; i++)
         {
             if (throwScores[i] > 0)
-            {
                 text += $"{i + 1}投目 : {throwScores[i]:F1}\n";
-            }
         }
 
         text += $"\n合計 : {totalScore:F1}";
-
         scoreUI.text = text;
     }
 
-    //==================================================
-    // 左上天候UI
-    //==================================================
     void UpdateWeatherUI()
     {
-        if (weatherUI == null || weatherSystem == null)
-            return;
+        if (!weatherUI || !weatherSystem) return;
 
-        string weatherName = "";
-
-        switch (weatherSystem.currentWeather)
+        string name = weatherSystem.currentWeather switch
         {
-            case WeatherType.Sunny:
-                weatherName = "晴れ";
-                break;
+            WeatherType.Sunny => "晴れ",
+            WeatherType.Rain => "雨",
+            WeatherType.Storm => "嵐",
+            _ => "不明"
+        };
 
-            case WeatherType.Rain:
-                weatherName = "雨";
-                break;
+        weatherUI.text = $"天候 : {name}";
+    }
 
-            case WeatherType.Storm:
-                weatherName = "嵐";
-                break;
+    // =========================
+    // Save
+    // =========================
 
-            default:
-                weatherName = "不明";
-                break;
+    public void SaveScore(float score)
+    {
+        ScoreHistory.Add(score);
+        ScoreHistory = ScoreHistory.OrderByDescending(x => x).Take(3).ToList();
+
+        PlayerPrefs.SetString(SCORE_KEY, string.Join(",", ScoreHistory));
+        PlayerPrefs.Save();
+    }
+
+    void LoadScores()
+    {
+        ScoreHistory.Clear();
+
+        if (!PlayerPrefs.HasKey(SCORE_KEY)) return;
+
+        foreach (var s in PlayerPrefs.GetString(SCORE_KEY).Split(','))
+        {
+            if (float.TryParse(s, out float v))
+                ScoreHistory.Add(v);
         }
 
-        weatherUI.text = $"天候 : {weatherName}";
+        ScoreHistory = ScoreHistory.OrderByDescending(x => x).ToList();
     }
 }
