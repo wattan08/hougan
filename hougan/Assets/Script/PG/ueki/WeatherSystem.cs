@@ -1,78 +1,58 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class WeatherSystem : MonoBehaviour
 {
-    [Header("Œ»İ“VŒó")]
+    [Header("ç¾åœ¨å¤©å€™")]
     public WeatherType currentWeather;
 
-    [Header("Œ»İ”{—¦")]
+    [Header("ç¾åœ¨å€ç‡")]
     public float currentMultiplier = 1f;
 
-    //==================================================
-    // “VŒóŒˆ’è
-    //==================================================
+    // âŒ é‡è¤‡ã—ã¦ã„ãŸã®ã§å‰Šé™¤æ¸ˆã¿
+    // public WeatherType currentWeather;
 
+    //==================================================
+    // å¤©å€™æ±ºå®š
+    //==================================================
     public void DecideWeather()
     {
-        int random =
-            Random.Range(0, 3);
+        int random = Random.Range(0, 3);
 
-        currentWeather =
-            (WeatherType)random;
+        currentWeather = (WeatherType)random;
 
         ApplyWeatherEffect();
 
-        Debug.Log(
-            $"Œ»İ“VŒó : {currentWeather}");
-
-        Debug.Log(
-            $"”{—¦ : {currentMultiplier}");
+        Debug.Log($"ç¾åœ¨å¤©å€™ : {currentWeather}");
+        Debug.Log($"å€ç‡ : {currentMultiplier}");
     }
 
     //==================================================
-    // Œø‰Ê“K—p
+    // åŠ¹æœé©ç”¨
     //==================================================
-
     private void ApplyWeatherEffect()
     {
         switch (currentWeather)
         {
-            // °‚ê
             case WeatherType.Sunny:
-
                 currentMultiplier = 1f;
-
                 break;
 
-            // ‰J
             case WeatherType.Rain:
-
                 currentMultiplier = 0.5f;
-
                 break;
 
-            // —’
             case WeatherType.Storm:
-
-                bool lucky =
-                    Random.value < 0.5f;
-
-                currentMultiplier =
-                    lucky ? 2f : 0.5f;
-
+                bool lucky = Random.value < 0.5f;
+                currentMultiplier = lucky ? 2f : 0.3f;
                 break;
         }
     }
 
     //==================================================
-    // ƒXƒRƒA•â³
+    // ã‚¹ã‚³ã‚¢è£œæ­£
     //==================================================
-
-    public float ApplyScore(
-        float baseScore)
+    public float ApplyScore(float baseScore)
     {
-        return
-            baseScore
-            * currentMultiplier;
+        return baseScore * currentMultiplier;
     }
 }
