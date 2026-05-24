@@ -109,8 +109,8 @@ public class GameManager : MonoBehaviour
 
         float finalPower =
             throwController.basePower * 2 *
-            chargePower * 2 *
-            directionAccuracy * 2 +
+            chargePower *
+            directionAccuracy +
             (timingAccuracy * 2f);
 
         // É{Å[Éãê∂ê¨

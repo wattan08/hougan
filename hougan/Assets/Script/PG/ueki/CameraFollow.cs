@@ -22,4 +22,4 @@ public class CameraFollow : MonoBehaviour
 
         transform.LookAt(target);
     }
-}
+}   
