@@ -6,7 +6,7 @@ public class BallFollowCamera : MonoBehaviour
     public Transform target;
 
     [Header("オフセット")]
-    public Vector3 offset = new Vector3(0, 5, -10);
+    public Vector3 offset = new Vector3(0, 3, -1);
 
     [Header("追従速度")]
     public float smooth = 8f;

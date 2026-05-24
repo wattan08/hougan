@@ -47,6 +47,10 @@ public class GameManager : MonoBehaviour
 
     private float[] throwScores;
 
+    // =========================
+    // Init
+    // =========================
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -58,8 +62,6 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
-        SetCamera(CameraMode.Main);
-
         UpdateScoreUI();
         UpdateWeatherUI();
 
@@ -73,7 +75,6 @@ public class GameManager : MonoBehaviour
     public void StartChargePhase()
     {
         SetCamera(CameraMode.Main);
-
         currentPhase = GamePhase.Charge;
 
         weatherSystem?.DecideWeather();
@@ -84,13 +85,17 @@ public class GameManager : MonoBehaviour
 
     public void StartDirectionPhase()
     {
+        SetCamera(CameraMode.Main);
         currentPhase = GamePhase.Direction;
+
         directionSystem?.StartDirection();
     }
 
     public void StartTimingPhase()
     {
+        SetCamera(CameraMode.Main);
         currentPhase = GamePhase.Timing;
+
         timingSystem?.StartTiming();
     }
 
@@ -99,21 +104,24 @@ public class GameManager : MonoBehaviour
         StartCoroutine(ThrowSequence());
     }
 
+    // =========================
+    // Throw
+    // =========================
+
     IEnumerator ThrowSequence()
     {
         SetCamera(CameraMode.Game);
 
-        yield return new WaitForSeconds(0.3f);
+        yield return new WaitForSeconds(0.2f);
 
         currentPhase = GamePhase.Throw;
 
         float finalPower =
             throwController.basePower * 2 *
-            chargePower *
+            chargePower * 2 *
             directionAccuracy +
             (timingAccuracy * 2f);
 
-        // ボール生成
         GameObject ball = Instantiate(
             throwController.shotBallPrefab,
             throwController.spawnPoint.position,
@@ -121,7 +129,6 @@ public class GameManager : MonoBehaviour
 
         currentBall = ball.transform;
 
-        // 投擲
         ball.AddComponent<SimpleProjectile>()
             .Init(throwController.spawnPoint.forward, finalPower);
 
@@ -129,7 +136,6 @@ public class GameManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.1f);
 
-        // ★ここが重要：BallFollowに正しく接続
         ballFollowCamera.target = currentBall;
 
         SetCamera(CameraMode.BallFollow);
@@ -143,8 +149,8 @@ public class GameManager : MonoBehaviour
     {
         SetCamera(CameraMode.Main);
 
-        currentBall = null;
         ballFollowCamera.target = null;
+        currentBall = null;
 
         Vector3 start = new Vector3(
             throwController.spawnPoint.position.x,
@@ -152,7 +158,8 @@ public class GameManager : MonoBehaviour
             throwController.spawnPoint.position.z);
 
         Vector3 end = new Vector3(
-            landingPoint.x, 0,
+            landingPoint.x,
+            0,
             landingPoint.z);
 
         float distance = Vector3.Distance(start, end);
