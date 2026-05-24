@@ -823,23 +823,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: be46fa4f6d7593a488092de789bdb53a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InputManager
---- !u!114 &684557325
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 684557322}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a04ca8befcc03f740aca26b247abd21b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ThrowController
-  shotBallPrefab: {fileID: 1749410945}
-  spawnPoint: {fileID: 623284500}
-  basePower: 30
-  maxThrowAngle: 70
-  minThrowAngle: 10
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -1350,9 +1333,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 623284500}
     m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b1961daefb808264188d4e527a1f9912, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 684557325}
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b1961daefb808264188d4e527a1f9912, type: 3}
       insertIndex: -1
       addedObject: {fileID: 684557324}
