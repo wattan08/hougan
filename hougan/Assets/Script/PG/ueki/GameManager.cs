@@ -7,106 +7,247 @@ using System.Linq;
 
 public class GameManager : MonoBehaviour
 {
+    // =========================
+    // Singleton
+    // =========================
+
     public static GameManager Instance;
 
-    public static float FinalScore;
-    public static List<float> ScoreHistory = new List<float>();
+    // =========================
+    // Score
+    // =========================
 
-    private const string SCORE_KEY = "ScoreHistory";
+    public static float FinalScore;
+
+    public static List<float> ScoreHistory =
+        new List<float>();
+
+    private const string SCORE_KEY =
+        "ScoreHistory";
+
+    // =========================
+    // Phase
+    // =========================
 
     [Header("現在フェーズ")]
     public GamePhase currentPhase;
 
+    // =========================
+    // Throw
+    // =========================
+
     public int currentThrow = 1;
+
     public int maxThrow = 3;
 
     public float totalScore;
 
+    private float[] throwScores;
+
+    // =========================
+    // UI
+    // =========================
+
     [Header("UI")]
     public TMP_Text scoreUI;
+
     public TMP_Text weatherUI;
+
+    // =========================
+    // Systems
+    // =========================
 
     [Header("Systems")]
     public ChargeSystem chargeSystem;
+
     public DirectionSystem directionSystem;
+
     public TimingSystem timingSystem;
+
     public ThrowController throwController;
+
     public WeatherSystem weatherSystem;
+
+    public RouletteController rouletteController;
+
+    // =========================
+    // Camera
+    // =========================
 
     [Header("Cameras")]
     public Camera mainCamera;
+
     public Camera gameCamera;
+
     public BallFollowCamera ballFollowCamera;
+
+    // =========================
+    // Runtime
+    // =========================
 
     [Header("Runtime")]
     public Transform currentBall;
 
-    [HideInInspector] public float chargePower;
-    [HideInInspector] public float directionAccuracy;
-    [HideInInspector] public float timingAccuracy;
+    [HideInInspector]
+    public float chargePower;
 
-    private float[] throwScores;
+    [HideInInspector]
+    public float directionAccuracy;
+
+    [HideInInspector]
+    public float timingAccuracy;
 
     // =========================
-    // Init
+    // Awake
     // =========================
 
     private void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+            return;
+        }
 
         throwScores = new float[maxThrow];
+
         LoadScores();
     }
 
+    // =========================
+    // Start
+    // =========================
+
     private void Start()
     {
+        SetCamera(CameraMode.Main);
+
         UpdateScoreUI();
+
         UpdateWeatherUI();
 
         StartChargePhase();
     }
 
     // =========================
-    // Phase
+    // Charge Phase
     // =========================
 
     public void StartChargePhase()
     {
-        SetCamera(CameraMode.Main);
         currentPhase = GamePhase.Charge;
 
-        weatherSystem?.DecideWeather();
+        SetCamera(CameraMode.Main);
+
+        StartCoroutine(WeatherRouletteSequence());
+    }
+
+    // =========================
+    // Roulette
+    // =========================
+
+    IEnumerator WeatherRouletteSequence()
+    {
+        // rouletteController未設定対策
+        if (rouletteController == null)
+        {
+            Debug.LogWarning(
+                "RouletteControllerが未設定です");
+
+            weatherSystem.DecideWeather();
+
+            UpdateWeatherUI();
+
+            chargeSystem?.StartCharge();
+
+            yield break;
+        }
+
+        // ルーレット終了待ち
+        yield return StartCoroutine(
+            rouletteController.SpinRoulette()
+        );
+
+        // 結果反映
+        switch (rouletteController.Result)
+        {
+            case 0:
+
+                weatherSystem.currentWeather =
+                    WeatherType.Sunny;
+
+                break;
+
+            case 1:
+
+                weatherSystem.currentWeather =
+                    WeatherType.Rain;
+
+                break;
+
+            case 2:
+
+                weatherSystem.currentWeather =
+                    WeatherType.Storm;
+
+                break;
+        }
+
         UpdateWeatherUI();
 
-        chargeSystem?.StartCharge();
+        // 次フェーズ
+        if (chargeSystem != null)
+        {
+            chargeSystem.StartCharge();
+        }
     }
+
+    // =========================
+    // Direction Phase
+    // =========================
 
     public void StartDirectionPhase()
     {
-        SetCamera(CameraMode.Main);
-        currentPhase = GamePhase.Direction;
+        currentPhase =
+            GamePhase.Direction;
 
-        directionSystem?.StartDirection();
+        SetCamera(CameraMode.Main);
+
+        if (directionSystem != null)
+        {
+            directionSystem.StartDirection();
+        }
     }
+
+    // =========================
+    // Timing Phase
+    // =========================
 
     public void StartTimingPhase()
     {
-        SetCamera(CameraMode.Main);
-        currentPhase = GamePhase.Timing;
+        currentPhase =
+            GamePhase.Timing;
 
-        timingSystem?.StartTiming();
+        SetCamera(CameraMode.Main);
+
+        if (timingSystem != null)
+        {
+            timingSystem.StartTiming();
+        }
     }
+
+    // =========================
+    // Throw Phase
+    // =========================
 
     public void StartThrowPhase()
     {
         StartCoroutine(ThrowSequence());
     }
-
-    // =========================
-    // Throw
-    // =========================
 
     IEnumerator ThrowSequence()
     {
@@ -114,29 +255,44 @@ public class GameManager : MonoBehaviour
 
         yield return new WaitForSeconds(0.2f);
 
-        currentPhase = GamePhase.Throw;
+        currentPhase =
+            GamePhase.Throw;
 
+        // 投擲パワー
         float finalPower =
-            throwController.basePower * 2 *
-            chargePower * 2 *
-            directionAccuracy +
+            throwController.basePower * 3f *
+            chargePower * 3f *
+            directionAccuracy * 2f +
             (timingAccuracy * 2f);
 
-        GameObject ball = Instantiate(
-            throwController.shotBallPrefab,
-            throwController.spawnPoint.position,
-            Quaternion.identity);
+        // ボール生成
+        GameObject ball =
+            Instantiate(
+                throwController.shotBallPrefab,
+                throwController.spawnPoint.position,
+                Quaternion.identity);
 
         currentBall = ball.transform;
 
-        ball.AddComponent<SimpleProjectile>()
-            .Init(throwController.spawnPoint.forward, finalPower);
+        // Projectile
+        SimpleProjectile projectile =
+            ball.AddComponent<SimpleProjectile>();
 
-        currentPhase = GamePhase.WaitingLanding;
+        projectile.Init(
+            throwController.spawnPoint.forward,
+            finalPower);
+
+        currentPhase =
+            GamePhase.WaitingLanding;
 
         yield return new WaitForSeconds(0.1f);
 
-        ballFollowCamera.target = currentBall;
+        // Follow Camera
+        if (ballFollowCamera != null)
+        {
+            ballFollowCamera.target =
+                currentBall;
+        }
 
         SetCamera(CameraMode.BallFollow);
     }
@@ -145,41 +301,62 @@ public class GameManager : MonoBehaviour
     // Landing
     // =========================
 
-    public void OnBallLanded(Vector3 landingPoint)
+    public void OnBallLanded(
+        Vector3 landingPoint)
     {
         SetCamera(CameraMode.Main);
 
-        ballFollowCamera.target = null;
+        // Follow解除
+        if (ballFollowCamera != null)
+        {
+            ballFollowCamera.target =
+                null;
+        }
+
         currentBall = null;
 
-        Vector3 start = new Vector3(
-            throwController.spawnPoint.position.x,
-            0,
-            throwController.spawnPoint.position.z);
+        Vector3 start =
+            new Vector3(
+                throwController.spawnPoint.position.x,
+                0,
+                throwController.spawnPoint.position.z);
 
-        Vector3 end = new Vector3(
-            landingPoint.x,
-            0,
-            landingPoint.z);
+        Vector3 end =
+            new Vector3(
+                landingPoint.x,
+                0,
+                landingPoint.z);
 
-        float distance = Vector3.Distance(start, end);
+        float distance =
+            Vector3.Distance(start, end);
 
         float finalScore =
-            weatherSystem != null
-            ? weatherSystem.ApplyScore(distance)
-            : distance;
+            distance;
+
+        if (weatherSystem != null)
+        {
+            finalScore =
+                weatherSystem.ApplyScore(
+                    distance);
+        }
 
         totalScore += finalScore;
 
-        int index = currentThrow - 1;
+        int index =
+            currentThrow - 1;
 
-        if (index >= 0 && index < throwScores.Length)
-            throwScores[index] = finalScore;
+        if (index >= 0 &&
+            index < throwScores.Length)
+        {
+            throwScores[index] =
+                finalScore;
+        }
 
         UpdateScoreUI();
 
         currentThrow++;
 
+        // 次投
         if (currentThrow <= maxThrow)
         {
             StartChargePhase();
@@ -187,8 +364,11 @@ public class GameManager : MonoBehaviour
         else
         {
             FinalScore = totalScore;
+
             SaveScore(totalScore);
-            SceneManager.LoadScene("result Scene");
+
+            SceneManager.LoadScene(
+                "result Scene");
         }
     }
 
@@ -209,22 +389,60 @@ public class GameManager : MonoBehaviour
     {
         currentCameraMode = mode;
 
-        if (mainCamera) mainCamera.enabled = false;
-        if (gameCamera) gameCamera.enabled = false;
-        if (ballFollowCamera) ballFollowCamera.enabled = false;
+        // BallFollow側のCamera取得
+        Camera followCam = null;
 
+        if (ballFollowCamera != null)
+        {
+            followCam =
+                ballFollowCamera
+                .GetComponent<Camera>();
+        }
+
+        // 全OFF
+        if (mainCamera != null)
+        {
+            mainCamera.enabled = false;
+        }
+
+        if (gameCamera != null)
+        {
+            gameCamera.enabled = false;
+        }
+
+        if (followCam != null)
+        {
+            followCam.enabled = false;
+        }
+
+        // 必要だけON
         switch (mode)
         {
             case CameraMode.Main:
-                if (mainCamera) mainCamera.enabled = true;
+
+                if (mainCamera != null)
+                {
+                    mainCamera.enabled = true;
+                }
+
                 break;
 
             case CameraMode.Game:
-                if (gameCamera) gameCamera.enabled = true;
+
+                if (gameCamera != null)
+                {
+                    gameCamera.enabled = true;
+                }
+
                 break;
 
             case CameraMode.BallFollow:
-                if (ballFollowCamera) ballFollowCamera.enabled = true;
+
+                if (followCam != null)
+                {
+                    followCam.enabled = true;
+                }
+
                 break;
         }
     }
@@ -235,33 +453,48 @@ public class GameManager : MonoBehaviour
 
     void UpdateScoreUI()
     {
-        if (!scoreUI) return;
+        if (scoreUI == null)
+            return;
 
         string text = "";
 
-        for (int i = 0; i < maxThrow; i++)
+        for (int i = 0;
+             i < maxThrow;
+             i++)
         {
             if (throwScores[i] > 0)
-                text += $"{i + 1}投目 : {throwScores[i]:F1}\n";
+            {
+                text +=
+                    $"{i + 1}投目 : " +
+                    $"{throwScores[i]:F1}\n";
+            }
         }
 
-        text += $"\n合計 : {totalScore:F1}";
+        text +=
+            $"\n合計 : {totalScore:F1}";
+
         scoreUI.text = text;
     }
 
     void UpdateWeatherUI()
     {
-        if (!weatherUI || !weatherSystem) return;
-
-        string name = weatherSystem.currentWeather switch
+        if (weatherUI == null ||
+            weatherSystem == null)
         {
-            WeatherType.Sunny => "晴れ",
-            WeatherType.Rain => "雨",
-            WeatherType.Storm => "嵐",
-            _ => "不明"
-        };
+            return;
+        }
 
-        weatherUI.text = $"天候 : {name}";
+        string name =
+            weatherSystem.currentWeather switch
+            {
+                WeatherType.Sunny => "晴れ",
+                WeatherType.Rain => "雨",
+                WeatherType.Storm => "嵐",
+                _ => "不明"
+            };
+
+        weatherUI.text =
+            $"天候 : {name}";
     }
 
     // =========================
@@ -271,9 +504,17 @@ public class GameManager : MonoBehaviour
     public void SaveScore(float score)
     {
         ScoreHistory.Add(score);
-        ScoreHistory = ScoreHistory.OrderByDescending(x => x).Take(3).ToList();
 
-        PlayerPrefs.SetString(SCORE_KEY, string.Join(",", ScoreHistory));
+        ScoreHistory =
+            ScoreHistory
+            .OrderByDescending(x => x)
+            .Take(3)
+            .ToList();
+
+        PlayerPrefs.SetString(
+            SCORE_KEY,
+            string.Join(",", ScoreHistory));
+
         PlayerPrefs.Save();
     }
 
@@ -281,14 +522,28 @@ public class GameManager : MonoBehaviour
     {
         ScoreHistory.Clear();
 
-        if (!PlayerPrefs.HasKey(SCORE_KEY)) return;
-
-        foreach (var s in PlayerPrefs.GetString(SCORE_KEY).Split(','))
+        if (!PlayerPrefs.HasKey(
+            SCORE_KEY))
         {
-            if (float.TryParse(s, out float v))
-                ScoreHistory.Add(v);
+            return;
         }
 
-        ScoreHistory = ScoreHistory.OrderByDescending(x => x).ToList();
+        foreach (string s in
+                 PlayerPrefs
+                 .GetString(SCORE_KEY)
+                 .Split(','))
+        {
+            if (float.TryParse(
+                s,
+                out float value))
+            {
+                ScoreHistory.Add(value);
+            }
+        }
+
+        ScoreHistory =
+            ScoreHistory
+            .OrderByDescending(x => x)
+            .ToList();
     }
 }
