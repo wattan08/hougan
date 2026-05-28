@@ -57,5 +57,11 @@ public class RouletteController : MonoBehaviour
         spinning = false;
 
         Debug.Log("ルーレット終了");
+
+        // 1秒後に非表示にしたい場合
+        yield return new WaitForSeconds(0.5f);
+
+        // ルーレット非表示
+        gameObject.SetActive(false);
     }
 }
