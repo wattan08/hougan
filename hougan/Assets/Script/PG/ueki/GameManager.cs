@@ -4,6 +4,7 @@ using TMPro;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.UI;
 
 public class GameManager : MonoBehaviour
 {
@@ -50,8 +51,10 @@ public class GameManager : MonoBehaviour
 
     [Header("UI")]
     public TMP_Text scoreUI;
-
     public TMP_Text weatherUI;
+
+    // Directionゲージ用PanelまたはSlider
+    public GameObject directionSlider;
 
     // =========================
     // Systems
@@ -130,6 +133,8 @@ public class GameManager : MonoBehaviour
 
         UpdateWeatherUI();
 
+        UpdatePhaseUI();
+
         StartChargePhase();
     }
 
@@ -140,6 +145,8 @@ public class GameManager : MonoBehaviour
     public void StartChargePhase()
     {
         currentPhase = GamePhase.Charge;
+
+        UpdatePhaseUI();
 
         SetCamera(CameraMode.Main);
 
@@ -212,8 +219,9 @@ public class GameManager : MonoBehaviour
 
     public void StartDirectionPhase()
     {
-        currentPhase =
-            GamePhase.Direction;
+        currentPhase = GamePhase.Direction;
+
+        UpdatePhaseUI();
 
         SetCamera(CameraMode.Main);
 
@@ -229,8 +237,9 @@ public class GameManager : MonoBehaviour
 
     public void StartTimingPhase()
     {
-        currentPhase =
-            GamePhase.Timing;
+        currentPhase = GamePhase.Timing;
+
+        UpdatePhaseUI();
 
         SetCamera(CameraMode.Main);
 
@@ -258,6 +267,8 @@ public class GameManager : MonoBehaviour
         currentPhase =
             GamePhase.Throw;
 
+        UpdatePhaseUI();
+
         // 投擲パワー
         float finalPower =
             throwController.basePower * 3f *
@@ -284,6 +295,8 @@ public class GameManager : MonoBehaviour
 
         currentPhase =
             GamePhase.WaitingLanding;
+
+        UpdatePhaseUI();
 
         yield return new WaitForSeconds(0.1f);
 
@@ -495,6 +508,16 @@ public class GameManager : MonoBehaviour
 
         weatherUI.text =
             $"天候 : {name}";
+    }
+
+    void UpdatePhaseUI()
+    {
+        if (directionSlider != null)
+        {
+            directionSlider.SetActive(
+                currentPhase == GamePhase.Direction
+            );
+        }
     }
 
     // =========================

@@ -7,6 +7,9 @@ public class RouletteController : MonoBehaviour
 
     public int Result { get; private set; }
 
+    [Header("矢印")]
+    public GameObject arrow;
+
     private float[] resultAngles =
     {
         0f,
@@ -16,20 +19,21 @@ public class RouletteController : MonoBehaviour
 
     public IEnumerator SpinRoulette()
     {
+        // ルーレットと矢印を表示
+        gameObject.SetActive(true);
+
+        if (arrow != null)
+            arrow.SetActive(true);
+
         spinning = true;
 
-        // 結果決定
         Result = Random.Range(0, 3);
 
         float targetAngle = resultAngles[Result];
-
-        float totalRotation =
-            360f * 5 + targetAngle;
+        float totalRotation = 360f * 5 + targetAngle;
 
         float currentRotation = 0f;
-
         float duration = 4f;
-
         float time = 0f;
 
         while (time < duration)
@@ -58,10 +62,12 @@ public class RouletteController : MonoBehaviour
 
         Debug.Log("ルーレット終了");
 
-        // 1秒後に非表示にしたい場合
         yield return new WaitForSeconds(0.5f);
 
-        // ルーレット非表示
+        // ルーレットと矢印を非表示
+        if (arrow != null)
+            arrow.SetActive(false);
+
         gameObject.SetActive(false);
     }
 }
