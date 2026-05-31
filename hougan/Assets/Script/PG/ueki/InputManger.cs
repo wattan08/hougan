@@ -10,6 +10,7 @@ public class InputManager : MonoBehaviour
     private ChargeSystem chargeSystem;
     private DirectionSystem directionSystem;
     private TimingSystem timingSystem;
+    private Animator Animator;
 
     private void Awake()
     {
@@ -35,6 +36,15 @@ public class InputManager : MonoBehaviour
             FindObjectOfType<TimingSystem>();
     }
 
+     void Start()
+    {
+        Animator = GetComponent<Animator>();
+    }
+
+    public  void AnimationMove()
+    {
+        Animator.SetBool("move", true);
+    }
     private void OnEnable()
     {
         inputActions.Enable();

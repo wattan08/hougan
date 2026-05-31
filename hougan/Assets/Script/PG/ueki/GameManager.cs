@@ -14,6 +14,8 @@ public class GameManager : MonoBehaviour
 
     public static GameManager Instance;
 
+    public InputManager InputManager;
+
     // =========================
     // Score
     // =========================
@@ -285,6 +287,8 @@ public class GameManager : MonoBehaviour
 
         currentBall = ball.transform;
 
+        InputManager.Instance.AnimationMove();
+
         // Projectile
         SimpleProjectile projectile =
             ball.AddComponent<SimpleProjectile>();
@@ -292,6 +296,8 @@ public class GameManager : MonoBehaviour
         projectile.Init(
             throwController.spawnPoint.forward,
             finalPower);
+
+
 
         currentPhase =
             GamePhase.WaitingLanding;
