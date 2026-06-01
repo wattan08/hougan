@@ -99,7 +99,7 @@ public class TimingSystem : MonoBehaviour
         GameManager.Instance.timingAccuracy =
             timingAccuracy;
 
-        // 投擲フェーズ
-        GameManager.Instance.StartThrowPhase();
+        GameManager.Instance.StartCoroutine(
+     GameManager.Instance.DelayedThrowPhase());
     }
 }

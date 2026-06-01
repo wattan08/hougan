@@ -84,6 +84,7 @@ public class ChargeSystem : MonoBehaviour
             chargePower;
 
         // èCê≥
-        GameManager.Instance.StartDirectionPhase();
+        GameManager.Instance.StartCoroutine(
+     GameManager.Instance.DelayedDirectionPhase());
     }
 }

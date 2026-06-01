@@ -10,7 +10,7 @@ public class InputManager : MonoBehaviour
     private ChargeSystem chargeSystem;
     private DirectionSystem directionSystem;
     private TimingSystem timingSystem;
-    private Animator Animator;
+    public Animator Animator;
 
     private void Awake()
     {

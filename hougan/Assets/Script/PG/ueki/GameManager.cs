@@ -35,6 +35,10 @@ public class GameManager : MonoBehaviour
     [Header("現在フェーズ")]
     public GamePhase currentPhase;
 
+    [Header("フェーズ間待機時間")]
+    [SerializeField]
+    private float phaseDelay = 2f;
+
     // =========================
     // Throw
     // =========================
@@ -155,6 +159,12 @@ public class GameManager : MonoBehaviour
         StartCoroutine(WeatherRouletteSequence());
     }
 
+    public IEnumerator DelayedDirectionPhase()
+    {
+        yield return new WaitForSeconds(phaseDelay);
+        StartDirectionPhase();
+    }
+
     // =========================
     // Roulette
     // =========================
@@ -233,6 +243,12 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public IEnumerator DelayedTimingPhase()
+    {
+        yield return new WaitForSeconds(phaseDelay);
+        StartTimingPhase();
+    }
+
     // =========================
     // Timing Phase
     // =========================
@@ -251,6 +267,12 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    public IEnumerator DelayedThrowPhase()
+    {
+        yield return new WaitForSeconds(phaseDelay);
+
+        StartThrowPhase();
+    }
     // =========================
     // Throw Phase
     // =========================
@@ -375,7 +397,13 @@ public class GameManager : MonoBehaviour
 
         currentThrow++;
 
-        // 次投
+        StartCoroutine(NextThrowRoutine());
+    }
+
+    private IEnumerator NextThrowRoutine()
+    {
+        yield return new WaitForSeconds(phaseDelay);
+
         if (currentThrow <= maxThrow)
         {
             StartChargePhase();
@@ -386,8 +414,7 @@ public class GameManager : MonoBehaviour
 
             SaveScore(totalScore);
 
-            SceneManager.LoadScene(
-                "result Scene");
+            SceneManager.LoadScene("result Scene");
         }
     }
 
